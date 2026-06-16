@@ -12,6 +12,7 @@ import { ARCHETYPES } from '../data/archetypes'
 import { STUDIO_UPGRADES, LABEL_SLOTS, EQUIPMENT_LIST, generateStaffPool } from '../data/studio'
 import { generateWeekEvents } from '../data/weekEvents'
 import { generateTrends, generateGenreTrends, generateOvertonWindow } from '../data/trends'
+import { generateArtistEvent } from '../data/artistEvents'
 import { generateNews } from '../data/news'
 import { generateNeed } from '../data/needs'
 import { clamp, randInt, chance } from '../lib/random'
@@ -416,6 +417,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (newNeed) needsUpdated.push(newNeed)
       }
 
+      // Щотижнева подія артиста
+      const artistEvent = generateArtistEvent(addiction, happiness)
+      if (artistEvent) {
+        if (artistEvent.effects.health) health += artistEvent.effects.health
+        if (artistEvent.effects.happiness) happiness += artistEvent.effects.happiness
+        if (artistEvent.effects.talent) talent += artistEvent.effects.talent
+        if (artistEvent.effects.discipline) discipline += artistEvent.effects.discipline
+        if (artistEvent.effects.charisma) charisma += artistEvent.effects.charisma
+        if (artistEvent.effects.popularity) popularity += artistEvent.effects.popularity
+        if (artistEvent.effects.addiction) addiction += artistEvent.effects.addiction
+        if (artistEvent.effects.selfConfidence) selfConfidence += artistEvent.effects.selfConfidence
+      }
+
       return {
         ...a, talent: clamp(talent, 10, 90), discipline: clamp(discipline, 10, 90),
         charisma: clamp(charisma, 10, 90), health: clamp(health, 10, 90),
@@ -427,6 +441,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           popularity: clamp(popularity, 10, 90), health: clamp(health, 10, 90),
           happiness: clamp(happiness, 10, 90), money: state.label.money,
         }],
+        currentEvent: artistEvent ?? null,
       }
     })
 

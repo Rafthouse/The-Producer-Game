@@ -40,6 +40,12 @@ export function ArtistCard({ artist, compact = false }: Props) {
           <StatBar label="Популярність" value={artist.popularity} emoji="📈" />
           <StatBar label="Залежність" value={artist.addiction} emoji="🍾" invert />
         </div>
+        {artist.currentEvent && (
+          <div className="mt-2 flex items-center gap-1.5 rounded-xl bg-amber-900/15 border border-amber-600/30 px-2.5 py-1.5">
+            <span className="text-sm">{artist.currentEvent.emoji}</span>
+            <span className="text-[10px] text-amber-300 truncate">{artist.currentEvent.title}</span>
+          </div>
+        )}
       </motion.div>
     )
   }
@@ -86,6 +92,36 @@ export function ArtistCard({ artist, compact = false }: Props) {
         <StatBar label="Здоров'я" value={artist.health} emoji="💪" />
         <StatBar label="Залежність" value={artist.addiction} emoji="🍾" invert />
       </div>
+
+      {artist.currentEvent && (
+        <div className="mt-4 rounded-2xl border border-amber-600/30 bg-amber-900/15 p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{artist.currentEvent.emoji}</span>
+            <div>
+              <span className="text-xs font-display text-amber-300">{artist.currentEvent.title}</span>
+              <p className="text-[10px] text-zinc-500 mt-0.5">{artist.currentEvent.description}</p>
+            </div>
+          </div>
+          {Object.keys(artist.currentEvent.effects).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(artist.currentEvent.effects).map(([stat, val]) => (
+                <span
+                  key={stat}
+                  className={`text-[10px] px-1.5 py-0.5 rounded ${
+                    (val as number) > 0 ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'
+                  }`}
+                >
+                  {stat === 'health' ? '💪' : stat === 'happiness' ? '😊' :
+                   stat === 'talent' ? '🎯' : stat === 'discipline' ? '⏰' :
+                   stat === 'charisma' ? '✨' : stat === 'popularity' ? '📈' :
+                   stat === 'addiction' ? '🍾' : stat === 'selfConfidence' ? '💪' : ''}
+                  {(val as number) > 0 ? '+' : ''}{val as number}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6">
         <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-zinc-500">

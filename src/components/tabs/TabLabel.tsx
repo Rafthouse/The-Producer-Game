@@ -216,7 +216,9 @@ function ArtistsPanel() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Статус-бар популярності (міні) */}
+                {a.currentEvent && (
+                  <span className="text-sm" title={a.currentEvent.title}>{a.currentEvent.emoji}</span>
+                )}
                 <MiniInlineBar value={a.popularity} color={a.popularity > 50 ? '#22c55e' : a.popularity > 30 ? '#fbbf24' : '#ef4444'} />
                 <span className="text-zinc-600 text-xs">{isExpanded ? '▲' : '▼'}</span>
               </div>
@@ -261,6 +263,36 @@ function ArtistsPanel() {
                       <span className="text-zinc-300">{a.localPop}/{a.nationalPop}/{a.globalPop}</span>
                     </div>
                   </div>
+
+                  {/* Поточна подія */}
+                  {a.currentEvent && (
+                    <div className="rounded-xl border border-amber-600/30 bg-amber-900/15 p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-base">{a.currentEvent.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-display text-amber-300">{a.currentEvent.title}</span>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">{a.currentEvent.description}</p>
+                        </div>
+                      </div>
+                      {Object.keys(a.currentEvent.effects).length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {Object.entries(a.currentEvent.effects).map(([stat, val]) => (
+                            <span key={stat}
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                (val as number) > 0 ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'
+                              }`}
+                            >
+                              {stat === 'health' ? '💪' : stat === 'happiness' ? '😊' :
+                               stat === 'talent' ? '🎯' : stat === 'discipline' ? '⏰' :
+                               stat === 'charisma' ? '✨' : stat === 'popularity' ? '📈' :
+                               stat === 'addiction' ? '🍾' : stat === 'selfConfidence' ? '💪' : ''}
+                              {(val as number) > 0 ? '+' : ''}{val as number}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Додаткові статуси */}
                   {a.tour.status !== 'none' && (

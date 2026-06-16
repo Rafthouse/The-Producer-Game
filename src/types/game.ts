@@ -86,6 +86,8 @@ export interface Artist {
   rehabWeeksLeft: number
   pregnant: boolean      // для романтиків/подій
   married: boolean
+  /** Поточна щотижнева подія (null = все спокійно) */
+  currentEvent: ArtistEvent | null
 }
 
 export type SuccessType =
@@ -272,6 +274,27 @@ export interface FreakStatus {
   trashPopBonus: number
   /** Штраф до репутації */
   repPenalty: number
+}
+
+// --- Щотижневі події артистів ---
+export interface ArtistEvent {
+  id: string
+  title: string
+  description: string
+  emoji: string
+  effects: Partial<{
+    health: number
+    happiness: number
+    talent: number
+    discipline: number
+    charisma: number
+    popularity: number
+    addiction: number
+    selfConfidence: number
+    reputation: number
+  }>
+  /** Чи вимагає артист підвищення роялті */
+  royaltyDemand?: boolean
 }
 
 export type GameTab = 'studio' | 'label' | 'world'

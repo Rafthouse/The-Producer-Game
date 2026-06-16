@@ -77,6 +77,7 @@ export const generateArtist = (): Artist => {
     rehabWeeksLeft: 0,
     pregnant: false,
     married: false,
+    currentEvent: null,
   }
 }
 
