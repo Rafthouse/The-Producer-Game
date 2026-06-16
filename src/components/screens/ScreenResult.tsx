@@ -36,11 +36,15 @@ function ResultStat({
 
 export function ScreenResult() {
   const result = useGameStore((s) => s.result)
-  const artist = useGameStore((s) => s.artist)
-  const next = useGameStore((s) => s.next)
+  const artist = useGameStore((s) => s.currentArtist)
+  const endWeek = useGameStore((s) => s.endWeek)
+  const artists = useGameStore((s) => s.artists)
 
   if (!result) return null
   const meta = SUCCESS_META[result.successType]
+
+  // Знайди артиста в списку підписаних (після релізу)
+  const signedArtist = artist ?? (artists.length > 0 ? artists[artists.length - 1] : null)
 
   return (
     <div className="flex flex-1 flex-col">
@@ -57,13 +61,15 @@ export function ScreenResult() {
           {result.successType}
         </h2>
         <p className="mt-1 text-sm text-zinc-400">{meta.tagline}</p>
-        <p className="mt-3 text-sm text-zinc-300">
-          «{result.title}» — <span className="font-semibold text-white">{artist.name}</span>
-        </p>
+        {signedArtist && (
+          <p className="mt-3 text-sm text-zinc-300">
+            «{result.title}» — <span className="font-semibold text-white">{signedArtist.name}</span>
+          </p>
+        )}
       </motion.div>
 
       {/* Цифри релізу */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <ResultStat emoji="🎧" label="Прослуховування" value={formatNumber(result.listeners)} />
         <ResultStat
           emoji="❤️"
@@ -77,6 +83,12 @@ export function ScreenResult() {
           value={formatMoney(result.money)}
           color={result.money >= 0 ? '#22c55e' : '#ef4444'}
         />
+        <ResultStat
+          emoji="🎵"
+          label="Токени"
+          value={`+${result.tokens}`}
+          color="#22c55e"
+        />
       </div>
 
       {/* Події */}
@@ -87,7 +99,7 @@ export function ScreenResult() {
         <ul className="space-y-2">
           {result.events.map((event, i) => (
             <motion.li
-              key={event}
+              key={`${event}-${i}`}
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 + i * 0.15 }}
@@ -101,8 +113,8 @@ export function ScreenResult() {
       </div>
 
       <div className="mt-8 flex justify-center">
-        <Button variant="primary" onClick={next} className="w-full text-lg sm:w-auto sm:px-12">
-          🔄 Новий артист
+        <Button variant="primary" onClick={endWeek} className="w-full text-lg sm:w-auto sm:px-12">
+          ⏭ Завершити тиждень
         </Button>
       </div>
     </div>

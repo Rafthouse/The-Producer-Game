@@ -18,3 +18,15 @@ export const formatSigned = (n: number): string => {
   if (n < 0) return `-${formatNumber(Math.abs(n))}`
   return '0'
 }
+
+/** Форматування календаря */
+export const formatCalendar = (week: number, month: number, year: number): string => {
+  const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру']
+  return `${months[month - 1]} ${year}, тижд. ${week}`
+}
+
+/** Назва студії за рівнем */
+export const studioName = (level: number): string => {
+  const names = ['Гараж', 'Підвал', 'Домашня студія', 'Комерційна студія', 'Преміум студія', 'Abbey Road']
+  return names[level - 1] ?? 'Невідомо'
+}

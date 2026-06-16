@@ -2,15 +2,21 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { ComponentType } from 'react'
 import { Layout } from './components/Layout'
 import { useGameStore } from './store/useGameStore'
+import { ScreenIntro } from './components/screens/ScreenIntro'
 import { ScreenNewArtist } from './components/screens/ScreenNewArtist'
 import { ScreenRelease } from './components/screens/ScreenRelease'
-import { ScreenResult } from './components/screens/ScreenResult'
+import { ScreenWeekEnd } from './components/screens/ScreenWeekEnd'
+import { ScreenGameOver } from './components/screens/ScreenGameOver'
+import { ScreenVictory } from './components/screens/ScreenVictory'
 import type { GamePhase } from './types/game'
 
 const SCREENS: Record<GamePhase, ComponentType> = {
-  newArtist: ScreenNewArtist,
+  intro: ScreenIntro,
+  pickArtist: ScreenNewArtist,
   release: ScreenRelease,
-  result: ScreenResult,
+  weekEnd: ScreenWeekEnd,
+  gameOver: ScreenGameOver,
+  victory: ScreenVictory,
 }
 
 export default function App() {

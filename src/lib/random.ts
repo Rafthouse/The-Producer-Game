@@ -27,3 +27,23 @@ export const uid = (): string => Math.random().toString(36).slice(2, 10)
 
 export const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value))
+
+/** Зважений вибір: приймає пари [значення, вага] */
+export const weighted = <T>(pairs: [T, number][]): T => {
+  const total = pairs.reduce((s, [, w]) => s + w, 0)
+  let r = Math.random() * total
+  for (const [val, w] of pairs) {
+    r -= w
+    if (r <= 0) return val
+  }
+  return pairs[pairs.length - 1][0]
+}
+
+/** Генерує нормально розподілене число (наближено) із центром ~50 */
+export const randNorm = (mean: number = 50, sd: number = 15): number => {
+  // Box-Muller
+  const u1 = Math.random()
+  const u2 = Math.random()
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
+  return clamp(Math.round(mean + z * sd), 10, 90)
+}
