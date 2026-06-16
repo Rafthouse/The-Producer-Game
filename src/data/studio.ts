@@ -1,5 +1,5 @@
 import type { StudioUpgrade, Equipment, StaffMember, StaffRole } from '../types/game'
-import { uid } from '../lib/random'
+import { pick, uid } from '../lib/random'
 
 export const STUDIO_UPGRADES: StudioUpgrade[] = [
   { level: 1, name: 'Гараж', qualityBonus: 0, cost: 0, description: 'Стартовий рівень. Хоч дах не тече.' },
@@ -48,13 +48,22 @@ const STAFF_NAMES: Record<StaffRole, string[]> = {
   security: ['Петро Охорона', 'Вадим Безпека', 'Гриша Вишибала'],
 }
 
+const STAFF_PERSONALITIES: Record<string, string[]> = {
+  manager: ['Діловий', 'Вигорає', 'Харизматичний', 'Бюрократ', 'Авантюрист'],
+  soundEngineer: ['Перфекціоніст', 'Розсіяний', 'Гік', 'Мінімаліст', 'Експериментатор'],
+  pr: ['Медійник', 'Інтриган', 'Оптиміст', 'Цинік', 'Маніпулятор'],
+  lawyer: ['Скрупульозний', 'Хитрий', 'Педант', 'Вигорає', 'Хабарник'],
+  accountant: ['Жадібний', 'Акуратний', 'Флегматик', 'Тривожний', 'Щедрий'],
+  security: ['Суворий', 'Добряк', 'Підозрілий', 'Колишній десантник', 'Любитель музики'],
+}
+
 const STAFF_BONUSES: Record<StaffRole, number> = {
-  manager: 5,     // бонус до організації
-  soundEngineer: 8, // бонус до якості запису
-  pr: 7,          // бонус до популярності
-  lawyer: 6,      // знижка на штрафи/суди
-  accountant: 5,  // знижка податків/видатків
-  security: 4,    // знижка скандалів
+  manager: 5,
+  soundEngineer: 8,
+  pr: 7,
+  lawyer: 6,
+  accountant: 5,
+  security: 4,
 }
 
 const STAFF_SALARIES: Record<StaffRole, number> = {
@@ -77,6 +86,7 @@ export const generateStaffPool = (): Omit<StaffMember, 'hired' | 'weekHired'>[] 
         role,
         salary: STAFF_SALARIES[role],
         bonus: STAFF_BONUSES[role],
+        personality: pick(STAFF_PERSONALITIES[role]),
       })
     }
   }

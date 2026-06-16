@@ -1,4 +1,4 @@
-import type { Artist, ReleaseResult, SuccessType } from '../types/game'
+import type { Artist, ReleaseResult, SuccessType, GenreTrend } from '../types/game'
 import { clamp, randFloat, randInt, randNorm } from './random'
 import { traitScore, traitChaos } from './traitEffects'
 import { generateEvents } from './generateEvents'
@@ -59,43 +59,47 @@ const tierFromScore = (score: number): SuccessType => {
 
 export interface ReleaseContext {
   studioLevel: number
-  qualityBonus: number        // від студії
-  equipBonus: number          // від обладнання
-  staffBonus: number          // від звукорежисера (якщо найнятий)
-  producerBonus: number       // від продюсера
-  profitMultiplier: number    // від продюсера-діляги
+  qualityBonus: number
+  equipBonus: number
+  staffBonus: number
+  producerBonus: number
+  profitMultiplier: number
+  genreTrend?: GenreTrend      // тренд жанру
+  freakPopBonus?: number        // бонус від треш-популярності
 }
 
-/**
- * Розраховує результат релізу з урахуванням усіх бонусів.
- */
 export const calculateRelease = (
   artist: Artist,
   context: ReleaseContext
 ): ReleaseResult => {
-  // База: талант 35%, харизма 25%, популярність 20%, дисципліна 10%, репутація 10%
   const base =
-    artist.talent * 0.35 +
-    artist.charisma * 0.25 +
-    artist.popularity * 0.2 +
-    artist.discipline * 0.1 +
-    artist.reputation * 0.1 -
-    artist.addiction * 0.2
+    artist.talent * 0.30 +
+    artist.charisma * 0.20 +
+    artist.popularity * 0.15 +
+    artist.discipline * 0.10 +
+    artist.reputation * 0.10 +
+    artist.selfConfidence * 0.05 -
+    artist.addiction * 0.15
 
-  // Бонуси
+  // Бонуси студії та обладнання
   const studioBonus = context.studioLevel * 3 + context.qualityBonus
   const totalBonus = (context.equipBonus + context.staffBonus + context.producerBonus) * 0.5 + studioBonus
 
+  // Тренди
+  let trendBonus = 0
+  if (context.genreTrend) {
+    trendBonus = context.genreTrend.popularityMod * 0.3
+  }
+
+  // Фрік/треш бонус
+  const freakBonus = (context.freakPopBonus ?? 0) * 0.5
+
+  // Випадковість
   const luck = randInt(-15, 40)
-
-  // Риси
   const traits = traitScore(artist.traits)
-  const chaos = traitChaos(artist.traits)
-
-  // Випадкоа норма з центром 0 для невеликої варіації
   const variation = randNorm(0, 8)
 
-  const score = clamp(base + traits + totalBonus + luck + variation, 0, 160)
+  const score = clamp(base + traits + totalBonus + trendBonus + freakBonus + luck + variation, 0, 160)
 
   const successType = tierFromScore(score)
   const tier = TIERS[successType]
@@ -114,7 +118,26 @@ export const calculateRelease = (
     money,
     tokens,
     successType,
-    events: generateEvents(artist, successType, chaos),
+    events: generateEvents(artist, successType, traitChaos(artist.traits)),
     score: Math.round(score),
   }
+}
+
+/** Розраховує тур */
+export const calculateTour = (
+  artist: Artist,
+  genreTrend?: GenreTrend
+): { revenue: number; fans: number; status: 'success' | 'failed' } => {
+  const base = artist.popularity * 0.3 + artist.charisma * 0.2 + (genreTrend?.popularityMod ?? 0) * 0.2
+  const luck = randInt(-10, 20)
+  const total = clamp(base + luck, 0, 100)
+
+  if (total < 40) {
+    const revenue = randInt(5_000, 30_000)
+    return { revenue, fans: randInt(100, 1000), status: 'failed' }
+  }
+
+  const revenue = randInt(50_000, 500_000) + Math.round(total * 5000)
+  const fans = randInt(5000, 50000) + Math.round(total * 500)
+  return { revenue, fans, status: 'success' }
 }
