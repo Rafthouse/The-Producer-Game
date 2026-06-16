@@ -15,6 +15,8 @@ import { generateTrends, generateGenreTrends, generateOvertonWindow } from '../d
 import { generateArtistEvent } from '../data/artistEvents'
 import { generateNews } from '../data/news'
 import { generateNeed } from '../data/needs'
+import { analyzeText, getTextModifiers } from '../lib/analyzeText'
+import type { TextTopic } from '../lib/analyzeText'
 import { clamp, randInt, chance } from '../lib/random'
 
 interface GameStore {
@@ -189,6 +191,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const securityStaff = state.hiredStaff.find((s) => s.role === 'security')
     const securityBonus = securityStaff ? securityStaff.bonus * 0.3 : 0
 
+    // Аналіз тексту
+    const analysis = analyzeText(artist.songText)
+    const overtonForAnalysis = state.overtonWindow.map((ow) => ({
+      topic: ow.topic as TextTopic,
+      popularity: ow.popularity,
+    }))
+    const textMods = getTextModifiers(
+      artist.genre.id,
+      artist.archetype,
+      overtonForAnalysis,
+      analysis
+    )
+
     const context: ReleaseContext & {
       prBonus: number; managerBonus: number; securityBonus: number; accountantBonus: number
       scandalReduction: number; happinessMod: number
@@ -200,6 +215,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       genreTrend, freakPopBonus: freak?.trashPopBonus ?? 0,
       prBonus, managerBonus, securityBonus, accountantBonus,
       scandalReduction, happinessMod,
+      textFitBonus: textMods.textFitBonus,
+      cringeBonus: textMods.cringeBonus,
+      scandalPenalty: textMods.scandalPenalty,
     }
 
     const result = calculateRelease(state.currentArtist, context)

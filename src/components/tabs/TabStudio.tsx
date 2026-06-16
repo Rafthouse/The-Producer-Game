@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGameStore } from '../../store/useGameStore'
 import { ArtistCard } from '../ArtistCard'
 import { Button } from '../ui/Button'
-import { StatBar } from '../StatBar'
 import { formatMoney, formatNumber, formatSigned } from '../../lib/format'
+import { analyzeText, calculateTextFit, TOPIC_LABELS } from '../../lib/analyzeText'
+import type { TextTopic } from '../../lib/analyzeText'
 
 /**
  * Вкладка 1: Студія
@@ -129,55 +131,215 @@ function StudioRecording({ artist, onRelease, onBack, tokens }: {
 }) {
   const { genre } = artist
   const canRelease = tokens >= 1
+  const overtonWindow = useGameStore((s) => s.overtonWindow)
+
+  // Режим: 'generated' або 'custom'
+  const [mode, setMode] = useState<'generated' | 'custom'>('generated')
+  const [customText, setCustomText] = useState('')
+  const [showAnalysis, setShowAnalysis] = useState(false)
+
+  // Аналізуємо текст (генерований або кастомний)
+  const textToAnalyze = mode === 'custom' && customText.trim()
+    ? customText
+    : artist.songText
+  const analysis = analyzeText(textToAnalyze)
+  const overtonForAnalysis = overtonWindow.map((ow) => ({
+    topic: ow.topic as TextTopic,
+    popularity: ow.popularity,
+  }))
+  const fit = calculateTextFit(analysis, artist.genre.id, artist.archetype, overtonForAnalysis)
+
+  const isValidCustom = customText.trim().split('\n').filter(Boolean).length >= 4
+    && customText.length <= 2000
+
+  // Оновлюємо текст артиста перед релізом
+  const handleRelease = () => {
+    if (mode === 'custom' && isValidCustom) {
+      // Тимчасово оновлюємо текст
+      useGameStore.setState({ currentArtist: { ...artist, songText: customText } })
+    }
+    onRelease()
+  }
+
+  // Теми з ненульовим значенням
+  const activeTopics = Object.entries(analysis.topics)
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6)
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="mb-5 text-center">
+    <div className="flex flex-1 flex-col overflow-y-auto pr-1">
+      <div className="mb-5 text-center flex-shrink-0">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-400">Студія</p>
         <h2 className="mt-1 font-display text-2xl text-white sm:text-3xl">Запис синглу</h2>
         <p className="mt-1 text-xs text-zinc-500">🎵 {tokens} · Вартість: 1 🎵</p>
       </div>
 
-      <div className="rounded-3xl border border-studio-600 bg-studio-800/80 p-6 shadow-glow"
+      {/* Профіль артиста */}
+      <div className="rounded-3xl border border-studio-600 bg-studio-800/80 p-5 shadow-glow flex-shrink-0"
         style={{ boxShadow: `0 0 50px -12px ${genre.accent}55` }}
       >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl text-2xl"
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
             style={{ backgroundColor: `${genre.accent}22`, boxShadow: `inset 0 0 0 2px ${genre.accent}55` }}
           >{genre.emoji}</div>
           <div>
-            <div className="font-display text-xl text-white">{artist.name}</div>
-            <div className="text-sm text-zinc-400">{genre.emoji} {genre.role}</div>
+            <div className="font-display text-lg text-white">{artist.name}</div>
+            <div className="text-xs text-zinc-400">{genre.emoji} {genre.role}</div>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <StatBar label="Талант" value={artist.talent} emoji="🎯" />
-          <StatBar label="Харизма" value={artist.charisma} emoji="✨" />
-          <StatBar label="Дисципліна" value={artist.discipline} emoji="⏰" />
-          <StatBar label="Популярність" value={artist.popularity} emoji="📈" />
-          <StatBar label="Самовпевненість" value={artist.selfConfidence} emoji="💪" />
-          <StatBar label="Щастя" value={artist.happiness} emoji="😊" />
-        </div>
-
-        <div className="mt-6 text-center">
+        <div className="text-center mb-3">
           <p className="text-xs uppercase tracking-widest text-zinc-500">Трек</p>
-          <p className="mt-1 font-display text-2xl" style={{ color: genre.accent }}>«{artist.trackTitle}»</p>
+          <p className="mt-1 font-display text-xl" style={{ color: genre.accent }}>«{artist.trackTitle}»</p>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-studio-600 bg-studio-900/70 p-4">
-          <p className="whitespace-pre-line text-center text-sm italic leading-relaxed text-zinc-300">{artist.songText}</p>
+        {/* Вибір режиму */}
+        <div className="flex gap-1 rounded-xl border border-studio-600 bg-studio-700/60 p-0.5 mb-3">
+          <button
+            onClick={() => setMode('generated')}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-display transition-all ${
+              mode === 'generated'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >🤖 Згенерувати текст</button>
+          <button
+            onClick={() => setMode('custom')}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-display transition-all ${
+              mode === 'custom'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >✍️ Написати свій</button>
+        </div>
+
+        {/* Режим: згенерований текст */}
+        {mode === 'generated' && (
+          <div className="rounded-2xl border border-studio-600 bg-studio-900/70 p-4">
+            <p className="whitespace-pre-line text-center text-sm italic leading-relaxed text-zinc-300">
+              {artist.songText}
+            </p>
+          </div>
+        )}
+
+        {/* Режим: написати свій текст */}
+        {mode === 'custom' && (
+          <div>
+            <textarea
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              placeholder="Введіть текст пісні... має бути мінімум 4 рядки, до 2000 символів"
+              className="w-full min-h-[120px] rounded-2xl border border-studio-600 bg-studio-900/70 p-4 text-sm text-zinc-300 placeholder-zinc-600 resize-y focus:outline-none focus:border-amber-500/50"
+              maxLength={2000}
+            />
+            <div className="flex justify-between mt-1 text-[10px]">
+              <span className={customText.trim().split('\n').filter(Boolean).length >= 4 ? 'text-green-500' : 'text-red-400'}>
+                {customText.trim().split('\n').filter(Boolean).length}/4 рядків
+              </span>
+              <span className={customText.length <= 2000 ? 'text-green-500' : 'text-red-400'}>
+                {customText.length}/2000 символів
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Кнопка аналізу / приховати аналіз */}
+        <div className="flex justify-center mt-3">
+          <button
+            onClick={() => setShowAnalysis(!showAnalysis)}
+            className="text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors"
+          >
+            {showAnalysis ? '🔽 Сховати аналіз' : '📊 Показати аналіз тексту'}
+          </button>
         </div>
       </div>
 
-      <div className="mt-6 flex justify-center flex-col items-center gap-3">
+      {/* ЗВІТ АНАЛІЗУ */}
+      <AnimatePresence>
+        {showAnalysis && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 space-y-2 overflow-hidden flex-shrink-0"
+          >
+            {/* Теми тексту */}
+            <div className="rounded-3xl border border-studio-600 bg-studio-800/80 p-4">
+              <p className="text-[10px] uppercase tracking-widest text-amber-400 mb-2">📝 Аналіз тексту</p>
+              <div className="space-y-1">
+                {activeTopics.map(([topic, val]) => (
+                  <div key={topic} className="flex items-center gap-2">
+                    <span className="text-[11px] text-zinc-400 w-24">{TOPIC_LABELS[topic as TextTopic] ?? topic}</span>
+                    <div className="flex-1 h-2 rounded-full bg-studio-600 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-amber-500"
+                        style={{ width: `${val}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-zinc-500 w-6 text-right">{val}</span>
+                  </div>
+                ))}
+                {activeTopics.length === 0 && (
+                  <p className="text-xs text-zinc-600 italic">Текст не містить розпізнаних тем</p>
+                )}
+              </div>
+            </div>
+
+            {/* Відповідність */}
+            <div className="rounded-3xl border border-studio-600 bg-studio-800/80 p-4">
+              <p className="text-[10px] uppercase tracking-widest text-amber-400 mb-2">🎯 Відповідність</p>
+              <div className="grid grid-cols-2 gap-2">
+                <FitBar label="Артисту" value={fit.artistFit} color="#22c55e" />
+                <FitBar label="Трендам" value={fit.trendFit} color="#06b6d4" />
+                <FitBar label="Шанс скандалу" value={fit.scandalChance} color={fit.scandalChance > 50 ? '#ef4444' : '#fbbf24'} />
+                <FitBar label="Шанс вірусності" value={fit.viralChance} color={fit.viralChance > 50 ? '#a855f7' : '#94a3b8'} />
+                <FitBar label="Кринж" value={fit.cringe} color={fit.cringe > 60 ? '#f97316' : '#78716c'} />
+                {fit.memePotential > 0 && (
+                  <FitBar label="Мем-потенціал" value={fit.memePotential} color="#ec4899" />
+                )}
+              </div>
+              {fit.details.likes.length > 0 && (
+                <p className="mt-2 text-[10px] text-green-500">
+                  👍 Сподобається: {fit.details.likes.map((t) => TOPIC_LABELS[t as TextTopic]).join(', ')}
+                </p>
+              )}
+              {fit.details.hates.length > 0 && (
+                <p className="text-[10px] text-red-400">
+                  👎 Не сподобається: {fit.details.hates.map((t) => TOPIC_LABELS[t as TextTopic]).join(', ')}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Кнопки дій */}
+      <div className="mt-5 flex justify-center flex-col items-center gap-3 flex-shrink-0 pb-4">
         {!canRelease && <p className="text-xs text-red-400">Недостатньо токенів!</p>}
         <div className="flex gap-3">
           <Button variant="ghost" onClick={onBack}>← Назад</Button>
-          <Button variant="primary" onClick={onRelease} disabled={!canRelease}>
+          <Button
+            variant="primary"
+            onClick={handleRelease}
+            disabled={!canRelease || (mode === 'custom' && !isValidCustom)}
+          >
             🎙️ Випустити (1 🎵)
           </Button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function FitBar({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="rounded-xl bg-studio-700/40 p-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] text-zinc-500">{label}</span>
+        <span className="text-[10px] font-display tabular-nums" style={{ color }}>{value}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-studio-600">
+        <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
       </div>
     </div>
   )

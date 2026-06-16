@@ -72,6 +72,10 @@ export interface ReleaseContext {
   accountantBonus?: number  // бухгалтер (знижка)
   scandalReduction?: number // Метр: -ризик скандалів
   happinessMod?: number     // Психолог: +щастя
+  // Аналіз тексту
+  textFitBonus?: number     // відповідність тексту артисту
+  cringeBonus?: number      // мем-потенціал
+  scandalPenalty?: number   // штраф за скандальні теми
 }
 
 /**
@@ -120,6 +124,11 @@ export const calculateRelease = (
   // Фрік/треш бонус
   const freakBonus = clamp((context.freakPopBonus ?? 0) * 0.3, 0, 9)
 
+  // === АНАЛІЗ ТЕКСТУ ===
+  const textFitBonus = context.textFitBonus ?? 0
+  const cringeBonus = context.cringeBonus ?? 0
+  const scandalPenalty = context.scandalPenalty ?? 0
+
   // === ТРЕЙТИ ===
   const traits = traitScore(artist.traits) // очікується ±10
   // Менше хаосу з охоронцем + Метром
@@ -130,7 +139,8 @@ export const calculateRelease = (
   const luck = randInt(-8, 8)
 
   const score = clamp(
-    base + techBonus + managerBonus + prBonus + trendBonus + freakBonus + traits + chaos * 0.3 + luck,
+    base + techBonus + managerBonus + prBonus + trendBonus + freakBonus + traits +
+    chaos * 0.3 + luck + textFitBonus + cringeBonus + scandalPenalty,
     0, 160
   )
 
