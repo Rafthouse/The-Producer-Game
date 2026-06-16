@@ -15,6 +15,15 @@ export const TREND_TOPICS: { topic: TrendTopic; name: string; emoji: string }[] 
   { topic: 'space', name: 'Космос', emoji: '🚀' },
 ]
 
+export const GENRE_META: Record<GenreId, { name: string; emoji: string; color: string }> = {
+  punk: { name: 'Панк', emoji: '🤘', color: '#ef4444' },
+  rap: { name: 'Реп', emoji: '🎤', color: '#a855f7' },
+  pop: { name: 'Поп', emoji: '💅', color: '#ec4899' },
+  folk: { name: 'Фолк', emoji: '🌾', color: '#22c55e' },
+  bard: { name: 'Бард', emoji: '🎸', color: '#f59e0b' },
+  electro: { name: 'Електроніка', emoji: '🎛️', color: '#06b6d4' },
+}
+
 /**
  * Зв'язок жанру з темами, які йому пасують.
  */
@@ -28,7 +37,20 @@ const GENRE_AFFINITY: Record<GenreId, TrendTopic[]> = {
 }
 
 /**
- * Генерує поточний стан трендів на основі попереднього стану.
+ * Популярність жанру змінюється щотижня.
+ * Базова лінія дрейфує +- випадкове число, плюс вплив трендів.
+ */
+const GENRE_DRIFT: Record<GenreId, number> = {
+  punk: 3,     // нестабільний, часто злітає/падає
+  rap: 2,
+  pop: 1,      // стабільний
+  folk: -1,    // повільно втрачає
+  bard: -2,
+  electro: 4,  // дуже мінливий
+}
+
+/**
+ * Генерує тренди (теми/вікна Овертона).
  */
 export const generateTrends = (oldTrends?: Trend[]): Trend[] => {
   return TREND_TOPICS.map((t) => {
@@ -37,7 +59,6 @@ export const generateTrends = (oldTrends?: Trend[]): Trend[] => {
     let dir: 'rising' | 'peaking' | 'falling'
 
     if (old) {
-      // Дрейф
       const drift = randInt(-8, 8)
       pop = clamp(old.popularity + drift, 5, 95)
       if (old.direction === 'rising' && pop > 70) dir = 'peaking'
@@ -54,33 +75,62 @@ export const generateTrends = (oldTrends?: Trend[]): Trend[] => {
 }
 
 /**
- * Генерує модифікатори популярності жанрів на основі трендів.
+ * Генерує популярність жанрів на основі трендів + власної динаміки.
+ * Приймає попередній стан, щоб зробити плавний дрейф.
  */
-export const generateGenreTrends = (trends: Trend[]): GenreTrend[] => {
+export const generateGenreTrends = (
+  trends: Trend[],
+  oldGenreTrends?: GenreTrend[]
+): GenreTrend[] => {
   const genreIds: GenreId[] = ['punk', 'rap', 'pop', 'folk', 'bard', 'electro']
+
   return genreIds.map((gid) => {
     const affinities = GENRE_AFFINITY[gid]
-    let mod = 0
+    const drift = GENRE_DRIFT[gid]
+
+    // Минуле значення популярності
+    const oldPop = oldGenreTrends?.find((g) => g.genreId === gid)?.popularity ?? 50
+
+    // Базовий дрейф
+    let newPop = oldPop + randInt(-4, 4) + drift * 0.5
+
+    // Вплив трендів
+    for (const aff of affinities) {
+      const trend = trends.find((t) => t.topic === aff)
+      if (trend) {
+        if (trend.popularity > 60) newPop += 2
+        else if (trend.popularity < 30) newPop -= 1
+        if (trend.direction === 'rising') newPop += 1.5
+        else if (trend.direction === 'falling') newPop -= 1.5
+      }
+    }
+
+    // Невеликий випадковий стрибок
+    if (chance(0.1)) newPop += randInt(-15, 15)
+
+    newPop = clamp(Math.round(newPop), 5, 100)
+
+    // popularityMod — похідна від зміни
+    const popDiff = newPop - oldPop
+    let mod = clamp(Math.round(popDiff * 1.5 + randInt(-5, 5)), -20, 20)
+
+    // Найгарячіша тема для жанру
     let hottest = affinities[0]
     let hottestPop = -1
-
     for (const aff of affinities) {
       const trend = trends.find((t) => t.topic === aff)
       if (trend && trend.popularity > hottestPop) {
         hottestPop = trend.popularity
         hottest = aff
       }
-      if (trend) {
-        // Якщо тренд росте — додаємо, падає — віднімаємо
-        if (trend.popularity > 60) mod += 3
-        else if (trend.popularity > 40) mod += 1
-        else mod -= 1
-        if (trend.direction === 'rising') mod += 2
-        else if (trend.direction === 'falling') mod -= 2
-      }
     }
 
-    return { genreId: gid, hotTopic: hottest, popularityMod: clamp(mod, -20, 20) }
+    return {
+      genreId: gid,
+      hotTopic: hottest,
+      popularity: newPop,
+      popularityMod: mod,
+    }
   })
 }
 

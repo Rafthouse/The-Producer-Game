@@ -93,7 +93,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const trends = generateTrends()
     const genreTrends = generateGenreTrends(trends)
     const overtonWindow = generateOvertonWindow(trends)
-    const news = generateNews(1, 1, 2024, trends, 3)
+    const news = generateNews(1, 1, 2024, trends, genreTrends, 0, 3)
     const pair = generateArtistPair()
     set({
       phase: 'playing', activeTab: 'studio', producer,
@@ -443,9 +443,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const weekEvents = generateWeekEvents()
     const trends = generateTrends(state.trends)
-    const genreTrends = generateGenreTrends(trends)
+    const genreTrends = generateGenreTrends(trends, state.genreTrends)
     const overtonWindow = generateOvertonWindow(trends)
-    const news = generateNews(newWeek, newMonth, newYear, trends, 3)
+    const news = generateNews(newWeek, newMonth, newYear, trends, genreTrends, state.artists.length, 4)
 
     let moneyDelta = -staffCost
     let fanDelta = 0, repDelta = 0, tokenDelta = 0
