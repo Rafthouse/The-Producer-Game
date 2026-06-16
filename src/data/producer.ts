@@ -11,31 +11,31 @@ interface SpecDef {
 export const SPECIALIZATIONS: Record<ProducerSpecialization, SpecDef> = {
   talented: {
     name: 'Талановитий',
-    description: '+5% до якості треків',
+    description: '+5% якості релізів. +2% за рівень.',
     emoji: '🎵',
     effect: 'qualityBonus',
   },
   shark: {
     name: 'Діляга',
-    description: '+5% до прибутку',
+    description: '+5% прибутку. +3% за рівень.',
     emoji: '🦈',
     effect: 'profitBonus',
   },
   maestro: {
     name: 'Метр',
-    description: '-10% шанс скандалів',
+    description: '-10% ризику скандалів. -2% за рівень.',
     emoji: '🎼',
     effect: 'scandalReduction',
   },
   psychologist: {
     name: 'Психолог',
-    description: '+10% до щастя артистів',
+    description: '+10% щастя артистів. +2% за рівень.',
     emoji: '🧠',
     effect: 'happinessBonus',
   },
   scammer: {
     name: 'Аферист',
-    description: '+10% до ризику, +15% до прибутку',
+    description: '+15% прибутку. -5% репутації.',
     emoji: '🎭',
     effect: 'riskProfitBonus',
   },

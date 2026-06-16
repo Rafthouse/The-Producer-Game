@@ -7,13 +7,14 @@ import { generateLyrics, generateTitle } from './generateLyrics'
 
 const ARCHETYPE_IDS: ArchetypeId[] = ['punk', 'workaholic', 'alcoholic', 'romantic', 'lazy', 'genius', 'diva', 'street']
 
+// Помірні зсуви — жоден не дає більше ±8
 const GENRE_BIAS: Record<GenreId, Partial<Record<string, number>>> = {
-  punk: { charisma: 10, discipline: -10, popularity: -5, selfConfidence: 15 },
-  rap: { charisma: 8, talent: 3, popularity: 5, selfConfidence: 12 },
-  pop: { charisma: 12, talent: -3, discipline: 5, popularity: 8, selfConfidence: 8 },
-  folk: { talent: 8, discipline: 8, charisma: -3, happiness: 3, selfConfidence: -5 },
-  bard: { talent: 5, charisma: -5, discipline: 3, selfConfidence: -3 },
-  electro: { discipline: 8, talent: 3, charisma: -3, selfConfidence: 2 },
+  punk: { charisma: 6, discipline: -6, popularity: -3, selfConfidence: 8 },
+  rap: { charisma: 5, talent: 2, popularity: 3, selfConfidence: 7 },
+  pop: { charisma: 7, talent: -2, discipline: 3, popularity: 5, selfConfidence: 5 },
+  folk: { talent: 5, discipline: 5, charisma: -2, selfConfidence: -3 },
+  bard: { talent: 3, charisma: -3, discipline: 2, selfConfidence: -2 },
+  electro: { discipline: 5, talent: 2, charisma: -2, selfConfidence: 1 },
 }
 
 const makeName = (): string => {
@@ -25,15 +26,16 @@ export const generateArtist = (): Artist => {
   const genre = pick(GENRES)
   const archetypeId: ArchetypeId = pick(ARCHETYPE_IDS)
 
-  const baseTalent = randNorm(50, 15)
-  const baseCharisma = randNorm(50, 15)
-  const baseDiscipline = randNorm(50, 15)
-  const baseHealth = randNorm(55, 15)
-  const baseHappiness = randNorm(50, 15)
-  const basePopularity = randNorm(35, 12)
-  const baseAddiction = randNorm(30, 18)
-  const baseReputation = randNorm(40, 15)
-  const baseSelfConfidence = randNorm(50, 18)
+  // Середній рівень 40-60. Максимум 90, мінімум 10.
+  const baseTalent = clamp(randNorm(50, 12), 10, 90)
+  const baseCharisma = clamp(randNorm(50, 12), 10, 90)
+  const baseDiscipline = clamp(randNorm(50, 12), 10, 90)
+  const baseHealth = clamp(randNorm(55, 12), 10, 90)
+  const baseHappiness = clamp(randNorm(50, 12), 10, 90)
+  const basePopularity = clamp(randNorm(40, 10), 10, 90)
+  const baseAddiction = clamp(randNorm(30, 15), 10, 90)
+  const baseReputation = clamp(randNorm(45, 12), 10, 90)
+  const baseSelfConfidence = clamp(randNorm(50, 15), 10, 90)
 
   const genreBias = GENRE_BIAS[genre.id]
 

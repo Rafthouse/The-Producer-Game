@@ -40,6 +40,7 @@ interface GameStore {
   charts: Charts
   rejectedThisWeek: number
   freakStatuses: Record<string, FreakStatus>
+  _weekAdvanced: boolean
 
   startGame: (specialization: string) => void
   setTab: (tab: GameTab) => void
@@ -106,11 +107,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       result: null, weekEvents: [],
       trends, genreTrends, overtonWindow, news,
       charts: { topArtists: [], topSingles: [] },
-      rejectedThisWeek: 0, freakStatuses: {},
+      rejectedThisWeek: 0, freakStatuses: {}, _weekAdvanced: false,
     })
   },
 
-  setTab: (tab) => set({ activeTab: tab }),
+  setTab: (tab) => {
+    const state = get()
+    // Якщо перемикаємось зі Studio — очистити result, щоб не залишити
+    // StudioResult виснути після повернення
+    set({
+      activeTab: tab,
+      ...(tab !== 'studio' && state.result ? { result: null } : {}),
+    })
+  },
 
   signArtist: (index) => {
     const state = get()
@@ -121,7 +130,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const signedArtist: Artist = { ...artist, signedWeek: state.calendar.week }
     const pair = generateArtistPair()
     set({
-      currentArtist: signedArtist,
       artists: [...state.artists, signedArtist],
       artistPair: pair,
       label: { ...state.label, signed: state.label.signed + 1 },
@@ -148,15 +156,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const equipBonus = state.equipment.filter((e) => e.owned).reduce((s, e) => s + e.bonus, 0)
     const soundEngineer = state.hiredStaff.find((s) => s.role === 'soundEngineer')
     const staffBonus = soundEngineer?.bonus ?? 0
+    // Спеціалізація продюсера: чистий відсотковий ефект
+    // - Талановитий: +5% до quality +2%/рівень
+    // - Діляга: +5% до profit +3%/рівень
+    // - Метр: -10% скандалів -2%/рівень
+    // - Психолог: +10% щастя +2%/рівень
+    // - Аферист: +15% прибутку, -5% репутації
     const levelMult = 1 + (producer.level - 1) * 0.1
     let producerBonus = 0
     let profitMultiplier = 1.0
+    let happinessMod = 0
+    let scandalReduction = 0
     switch (spec.effect) {
       case 'qualityBonus': producerBonus = Math.round(5 * levelMult); break
       case 'profitBonus': profitMultiplier = 1.0 + 0.05 * levelMult; break
-      case 'scandalReduction': producerBonus = Math.round(2 * levelMult); break
-      case 'happinessBonus': producerBonus = Math.round(3 * levelMult); break
-      case 'riskProfitBonus': profitMultiplier = 1.0 + 0.15 * levelMult; break
+      case 'scandalReduction': scandalReduction = 0.10 + (producer.level - 1) * 0.02; break
+      case 'happinessBonus': happinessMod = 0.10 + (producer.level - 1) * 0.02; break
+      case 'riskProfitBonus': profitMultiplier = 1.15; break
     }
     const studioUpgrade = STUDIO_UPGRADES[state.studioLevel - 1]
     const artist = state.currentArtist
@@ -173,13 +189,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const securityStaff = state.hiredStaff.find((s) => s.role === 'security')
     const securityBonus = securityStaff ? securityStaff.bonus * 0.3 : 0
 
-    const context: ReleaseContext & { prBonus: number; managerBonus: number; securityBonus: number; accountantBonus: number } = {
+    const context: ReleaseContext & {
+      prBonus: number; managerBonus: number; securityBonus: number; accountantBonus: number
+      scandalReduction: number; happinessMod: number
+    } = {
       studioLevel: state.studioLevel,
       qualityBonus: studioUpgrade.qualityBonus,
       equipBonus, staffBonus, producerBonus,
       profitMultiplier: profitMultiplier * (1 + lawyerBonus),
       genreTrend, freakPopBonus: freak?.trashPopBonus ?? 0,
       prBonus, managerBonus, securityBonus, accountantBonus,
+      scandalReduction, happinessMod,
     }
 
     const result = calculateRelease(state.currentArtist, context)
@@ -220,6 +240,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       result, artists: updatedArtists, currentArtist: null,
+      _weekAdvanced: false,  // новий тиждень, можна завершувати
       label: {
         ...state.label,
         money: state.label.money + result.money,
@@ -364,8 +385,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ labelSlotIndex: nextIndex, label: { ...state.label, money: state.label.money - upgrade.cost } })
   },
 
+  /** Захист від подвійного виклику endWeek */
+  _weekAdvanced: false,
+
   endWeek: () => {
     const state = get()
+    // Захист: якщо тиждень вже було завершено (наприклад, стара
+    // StudioResult після перемикання вкладок) — пропускаємо.
+    if (state._weekAdvanced) return
     const { week, month, year } = state.calendar
     let newWeek = week + 1
     let newMonth = month
@@ -489,6 +516,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       producer: state.producer ? { ...state.producer, reputation: newRep } : null,
       weekEvents, result: null, currentArtist: null, artistPair: generateArtistPair(),
       rejectedThisWeek: 0, trends, genreTrends, overtonWindow, news, freakStatuses: newFreakStatuses,
+      _weekAdvanced: true,
     })
   },
 
@@ -502,7 +530,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       calendar: { ...initialCalendar }, result: null, weekEvents: [],
       trends: generateTrends(), genreTrends: [], overtonWindow: [], news: [],
       charts: { topArtists: [], topSingles: [] },
-      rejectedThisWeek: 0, freakStatuses: {},
+      rejectedThisWeek: 0, freakStatuses: {}, _weekAdvanced: false,
     })
   },
 }))

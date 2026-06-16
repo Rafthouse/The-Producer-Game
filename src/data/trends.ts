@@ -59,7 +59,7 @@ export const generateTrends = (oldTrends?: Trend[]): Trend[] => {
     let dir: 'rising' | 'peaking' | 'falling'
 
     if (old) {
-      const drift = randInt(-8, 8)
+      const drift = randInt(-5, 5)
       pop = clamp(old.popularity + drift, 5, 95)
       if (old.direction === 'rising' && pop > 70) dir = 'peaking'
       else if (old.direction === 'peaking' && chance(0.4)) dir = 'falling'
@@ -91,22 +91,27 @@ export const generateGenreTrends = (
     // Минуле значення популярності
     const oldPop = oldGenreTrends?.find((g) => g.genreId === gid)?.popularity ?? 50
 
-    // Базовий дрейф
-    let newPop = oldPop + randInt(-4, 4) + drift * 0.5
+    // Базовий дрейф — макс ±5 на тиждень
+    let newPop = oldPop + randInt(-3, 3) + Math.round(drift * 0.3)
 
     // Вплив трендів
     for (const aff of affinities) {
       const trend = trends.find((t) => t.topic === aff)
       if (trend) {
-        if (trend.popularity > 60) newPop += 2
+        if (trend.popularity > 60) newPop += 1
         else if (trend.popularity < 30) newPop -= 1
-        if (trend.direction === 'rising') newPop += 1.5
-        else if (trend.direction === 'falling') newPop -= 1.5
+        if (trend.direction === 'rising') newPop += 1
+        else if (trend.direction === 'falling') newPop -= 1
       }
     }
 
-    // Невеликий випадковий стрибок
-    if (chance(0.1)) newPop += randInt(-15, 15)
+    // М`який стрибок (рідко, але можливо)
+    if (chance(0.08)) newPop += randInt(-8, 8)
+
+    // Фінальне обмеження: не більше ±5 від минулого
+    const maxChange = 5
+    if (newPop - oldPop > maxChange) newPop = oldPop + maxChange
+    if (newPop - oldPop < -maxChange) newPop = oldPop - maxChange
 
     newPop = clamp(Math.round(newPop), 5, 100)
 
