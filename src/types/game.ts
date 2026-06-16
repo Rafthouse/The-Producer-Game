@@ -122,6 +122,9 @@ export interface Producer {
   portrait: string
   reputation: number
   specialization: ProducerSpecialization
+  level: number
+  experience: number
+  experienceToNext: number
 }
 
 export type StudioLevel = 1 | 2 | 3 | 4 | 5 | 6

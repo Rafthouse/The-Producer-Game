@@ -60,6 +60,9 @@ export const generateProducer = (): Producer => {
     name: pick(PRODUCER_NAMES),
     portrait: '🎧',
     reputation: 50,
+    level: 1,
+    experience: 0,
+    experienceToNext: 100,
     specialization: pick(specKeys),
   }
 }

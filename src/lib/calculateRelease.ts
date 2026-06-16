@@ -61,29 +61,49 @@ export interface ReleaseContext {
   studioLevel: number
   qualityBonus: number
   equipBonus: number
-  staffBonus: number
-  producerBonus: number
-  profitMultiplier: number
-  genreTrend?: GenreTrend      // тренд жанру
-  freakPopBonus?: number        // бонус від треш-популярності
+  staffBonus: number        // звукорежисер
+  producerBonus: number     // продюсер (з рівнем)
+  profitMultiplier: number  // продюсер + юрист
+  genreTrend?: GenreTrend
+  freakPopBonus?: number
+  prBonus?: number          // PR-менеджер
+  managerBonus?: number     // менеджер (дисципліна)
+  securityBonus?: number    // охоронець (скандали)
+  accountantBonus?: number  // бухгалтер (знижка)
 }
 
+/**
+ * Розраховує результат релізу з усіма бонусами.
+ */
 export const calculateRelease = (
   artist: Artist,
   context: ReleaseContext
 ): ReleaseResult => {
+  // Базова формула з усіма статами
   const base =
-    artist.talent * 0.30 +
-    artist.charisma * 0.20 +
-    artist.popularity * 0.15 +
+    artist.talent * 0.25 +
+    artist.charisma * 0.15 +
+    artist.popularity * 0.10 +
     artist.discipline * 0.10 +
-    artist.reputation * 0.10 +
+    artist.reputation * 0.05 +
     artist.selfConfidence * 0.05 -
     artist.addiction * 0.15
 
-  // Бонуси студії та обладнання
+  // Бонуси студії + обладнання
   const studioBonus = context.studioLevel * 3 + context.qualityBonus
-  const totalBonus = (context.equipBonus + context.staffBonus + context.producerBonus) * 0.5 + studioBonus
+  const techBonus = (context.equipBonus + context.staffBonus + context.producerBonus) * 0.5 + studioBonus
+
+  // Бонус менеджера (покращує дисципліну)
+  const managerBonus = (context.managerBonus ?? 0) * 0.5
+
+  // Бонус PR (покращує популярність)
+  const prBonus = (context.prBonus ?? 0) * 0.3
+
+  // Бонус охоронця (знижує хаос)
+  const securityEffect = -(context.securityBonus ?? 0) * 0.2
+
+  // Знижка бухгалтера (знижує витрати)
+  const accountantDiscount = 1 - (context.accountantBonus ?? 0)
 
   // Тренди
   let trendBonus = 0
@@ -97,9 +117,13 @@ export const calculateRelease = (
   // Випадковість
   const luck = randInt(-15, 40)
   const traits = traitScore(artist.traits)
+  const securityChaos = traitChaos(artist.traits) * (1 + securityEffect)
   const variation = randNorm(0, 8)
 
-  const score = clamp(base + traits + totalBonus + trendBonus + freakBonus + luck + variation, 0, 160)
+  const score = clamp(
+    base + traits + techBonus + managerBonus + prBonus + trendBonus + freakBonus + luck + securityChaos * 0.5 + variation,
+    0, 160
+  )
 
   const successType = tierFromScore(score)
   const tier = TIERS[successType]
@@ -107,8 +131,9 @@ export const calculateRelease = (
   const listeners = randInt(tier.listeners[0], tier.listeners[1])
   const fans = Math.round(listeners * randFloat(tier.fanRate[0], tier.fanRate[1]))
   const revenue = listeners * randFloat(tier.payRate[0], tier.payRate[1])
-  const cost = randInt(tier.cost[0], tier.cost[1])
-  const money = Math.round(revenue * context.profitMultiplier - cost)
+  const baseCost = randInt(tier.cost[0], tier.cost[1])
+  const adjustedCost = Math.round(baseCost * accountantDiscount)
+  const money = Math.round(revenue * context.profitMultiplier - adjustedCost)
   const tokens = randInt(tier.tokenReward[0], tier.tokenReward[1])
 
   return {
@@ -118,26 +143,35 @@ export const calculateRelease = (
     money,
     tokens,
     successType,
-    events: generateEvents(artist, successType, traitChaos(artist.traits)),
+    events: generateEvents(artist, successType, Math.round(traitChaos(artist.traits) * (1 + securityEffect))),
     score: Math.round(score),
   }
 }
 
-/** Розраховує тур */
+/**
+ * Розраховує результат туру з урахуванням менеджера.
+ */
 export const calculateTour = (
   artist: Artist,
-  genreTrend?: GenreTrend
+  genreTrend?: GenreTrend,
+  managerBonus: number = 0
 ): { revenue: number; fans: number; status: 'success' | 'failed' } => {
-  const base = artist.popularity * 0.3 + artist.charisma * 0.2 + (genreTrend?.popularityMod ?? 0) * 0.2
-  const luck = randInt(-10, 20)
-  const total = clamp(base + luck, 0, 100)
+  const base = artist.popularity * 0.3 + artist.charisma * 0.15 + (genreTrend?.popularityMod ?? 0) * 0.2 + managerBonus * 0.5
+  const healthPenalty = artist.health < 40 ? (40 - artist.health) * 0.3 : 0
+  const luck = randInt(-15, 25)
+  const total = clamp(base + luck - healthPenalty, 0, 100)
 
   if (total < 40) {
-    const revenue = randInt(5_000, 30_000)
-    return { revenue, fans: randInt(100, 1000), status: 'failed' }
+    return {
+      revenue: clamp(artist.popularity * 500 + randInt(-10000, 10000), 0, 80000),
+      fans: randInt(100, artist.popularity * 100),
+      status: 'failed',
+    }
   }
 
-  const revenue = randInt(50_000, 500_000) + Math.round(total * 5000)
-  const fans = randInt(5000, 50000) + Math.round(total * 500)
-  return { revenue, fans, status: 'success' }
+  return {
+    revenue: clamp(Math.round(artist.popularity * 5000 + total * 5000 + randInt(-20000, 20000)), 20000, 500000),
+    fans: Math.round(clamp(artist.popularity * 500 + total * 300, 1000, 100000)),
+    status: 'success',
+  }
 }
