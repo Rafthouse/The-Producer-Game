@@ -120,6 +120,66 @@ export function TabStudio() {
           </Button>
         </div>
       )}
+
+      {/* Налаштування AI */}
+      <AiSettingsPanel />
+    </div>
+  )
+}
+
+function AiSettingsPanel() {
+  const aiApiKey = useGameStore((s) => s.aiApiKey)
+  const setAiApiKey = useGameStore((s) => s.setAiApiKey)
+  const [showSettings, setShowSettings] = useState(false)
+  const [keyInput, setKeyInput] = useState(aiApiKey)
+
+  return (
+    <div className="mt-6">
+      <button
+        onClick={() => setShowSettings(!showSettings)}
+        className="text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors"
+      >
+        {showSettings ? '🔽 Сховати' : '⚙️ Налаштування генерації музики'}
+      </button>
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 rounded-2xl border border-studio-600 bg-studio-800/70 p-4"
+          >
+            <p className="text-[10px] uppercase tracking-widest text-amber-400 mb-2">🤖 Hugging Face Inference API</p>
+            <p className="text-[11px] text-zinc-500 mb-2">
+              Вставте ваш Hugging Face токен, щоб генерувати аудіо до релізів
+              (безкоштовно, ліміт ~300 запитів/год).
+              Якщо не налаштовано — звук буде синтезований програмно.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder="hf_xxxxxxxxxxxx..."
+                className="flex-1 rounded-xl border border-studio-600 bg-studio-900/70 px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"
+              />
+              <button
+                onClick={() => setAiApiKey(keyInput)}
+                className="rounded-xl bg-amber-500/20 border border-amber-600/30 px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/30 transition-colors"
+              >Зберегти</button>
+            </div>
+            {aiApiKey && (
+              <p className="mt-2 text-[10px] text-green-500">✅ Токен збережено ({aiApiKey.slice(0, 12)}...)</p>
+            )}
+            <p className="mt-2 text-[10px] text-zinc-600">
+              <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">
+                Отримати токен
+              </a>
+               (безкоштовно, реєстрація на huggingface.co)
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -379,6 +439,9 @@ function FitBar({ label, value, color }: { label: string; value: number; color: 
 function StudioResult() {
   const result = useGameStore((s) => s.result)
   const endWeek = useGameStore((s) => s.endWeek)
+  const audioData = useGameStore((s) => s.audioData)
+  const audioMimeType = useGameStore((s) => s.audioMimeType)
+  const isGeneratingAudio = useGameStore((s) => s.isGeneratingAudio)
 
   if (!result) return null
 
@@ -402,6 +465,26 @@ function StudioResult() {
         <h2 className="mt-2 font-display text-3xl" style={{ color: meta.color }}>{result.successType}</h2>
         <p className="mt-1 text-sm text-zinc-400">{meta.tagline}</p>
       </motion.div>
+
+      {/* Програвач */}
+      {isGeneratingAudio ? (
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-600/30 px-4 py-2 text-sm text-amber-400">
+            <span className="animate-pulse">🎵</span>
+            <span>Генеруємо музику...</span>
+          </div>
+        </div>
+      ) : audioData ? (
+        <div className="text-center mb-4">
+          <audio
+            key={audioData}
+            controls
+            autoPlay
+            className="mx-auto w-full max-w-sm h-10 rounded-xl"
+            src={`data:${audioMimeType};base64,${audioData}`}
+          />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-4 gap-3 mb-6">
         <ResultBox emoji="🎧" label="Слухачі" value={formatNumber(result.listeners)} />

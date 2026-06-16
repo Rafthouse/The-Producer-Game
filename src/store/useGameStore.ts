@@ -7,6 +7,7 @@ import type {
 } from '../types/game'
 import { generateArtistPair } from '../lib/generateArtist'
 import { calculateRelease, calculateTour, type ReleaseContext } from '../lib/calculateRelease'
+import { generateMusic, generateSynthPreview } from '../lib/musicApi'
 import { generateProducer, SPECIALIZATIONS } from '../data/producer'
 import { ARCHETYPES } from '../data/archetypes'
 import { STUDIO_UPGRADES, LABEL_SLOTS, EQUIPMENT_LIST, generateStaffPool } from '../data/studio'
@@ -43,6 +44,14 @@ interface GameStore {
   rejectedThisWeek: number
   freakStatuses: Record<string, FreakStatus>
   _weekAdvanced: boolean
+  /** Hugging Face API токен (зберігається в localStorage) */
+  aiApiKey: string
+  /** Остання згенерована аудіо (base64) */
+  audioData: string | null
+  /** mimeType аудіо */
+  audioMimeType: string
+  /** Чи триває генерація */
+  isGeneratingAudio: boolean
 
   startGame: (specialization: string) => void
   setTab: (tab: GameTab) => void
@@ -62,6 +71,7 @@ interface GameStore {
   upgradeLabel: () => void
   endWeek: () => void
   restart: () => void
+  setAiApiKey: (key: string) => void
 }
 
 const initialLabel: LabelStats = { money: 5000, fans: 0, signed: 0, releases: 0, tokens: 3 }
@@ -90,6 +100,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   charts: { topArtists: [], topSingles: [] },
   rejectedThisWeek: 0,
   freakStatuses: {},
+  aiApiKey: typeof localStorage !== 'undefined' ? localStorage.getItem('pt_ai_api_key') || '' : '',
+  audioData: null,
+  audioMimeType: 'audio/wav',
+  isGeneratingAudio: false,
 
   startGame: (specialization) => {
     const producer = generateProducer()
@@ -120,6 +134,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       activeTab: tab,
       ...(tab !== 'studio' && state.result ? { result: null } : {}),
+      // Очищуємо аудіо при виході з StudioResult
+      ...(tab !== 'studio' ? { audioData: null, isGeneratingAudio: false } : {}),
     })
   },
 
@@ -148,10 +164,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (artist) set({ currentArtist: artist })
   },
 
+  setAiApiKey: (key: string) => {
+    localStorage.setItem('pt_ai_api_key', key)
+    set({ aiApiKey: key })
+  },
+
   release: () => {
     const state = get()
     if (!state.currentArtist || !state.producer) return
     if (state.label.tokens < 1) return
+
+    // Починаємо генерацію музики (асинхронно — не чекаємо)
+    set({ isGeneratingAudio: true })
+    const artist = state.currentArtist
+    const promptText = artist.lyricsPrompt || `${artist.genre.role} ${artist.genre.name}`
+    generateMusic(state.aiApiKey, artist.songText, promptText, 15)
+      .then((result) => {
+        if (result.success && result.audioBase64) {
+          set({
+            audioData: result.audioBase64,
+            audioMimeType: result.mimeType || 'audio/wav',
+            isGeneratingAudio: false,
+          })
+        } else {
+          // Фолбек: синтезована заглушка
+          const synthBase64 = generateSynthPreview(artist.genre.id, 10)
+          set({
+            audioData: synthBase64,
+            audioMimeType: 'audio/wav',
+            isGeneratingAudio: false,
+          })
+          console.warn('[MusicGen] API failed, using synth:', result.error)
+        }
+      })
+      .catch(() => {
+        set({ isGeneratingAudio: false })
+      })
 
     const producer = state.producer
     const spec = SPECIALIZATIONS[producer.specialization]
@@ -177,7 +225,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       case 'riskProfitBonus': profitMultiplier = 1.15; break
     }
     const studioUpgrade = STUDIO_UPGRADES[state.studioLevel - 1]
-    const artist = state.currentArtist
     const genreTrend = artist ? state.genreTrends.find((g) => g.genreId === artist.genre.id) : undefined
     const freak = artist ? state.freakStatuses[artist.id] : undefined
     const prStaff = state.hiredStaff.find((s) => s.role === 'pr')
