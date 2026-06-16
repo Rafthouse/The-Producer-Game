@@ -88,6 +88,8 @@ export interface Artist {
   married: boolean
   /** Поточна щотижнева подія (null = все спокійно) */
   currentEvent: ArtistEvent | null
+  /** Промпт для генерації тексту пісні (задається при створенні артиста) */
+  lyricsPrompt: string
 }
 
 export type SuccessType =

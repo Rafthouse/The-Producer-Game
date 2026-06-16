@@ -3,7 +3,7 @@ import { GENRES } from '../data/genres'
 import { PREFIXES, READY_NAMES, ROOTS, SUFFIXES } from '../data/names'
 import { TRAITS } from '../data/traits'
 import { chance, clamp, pick, pickMany, randInt, randNorm, uid } from './random'
-import { generateLyrics, generateTitle } from './generateLyrics'
+import { generateLyricsFromPrompt, generateTitle } from './generateLyrics'
 
 const ARCHETYPE_IDS: ArchetypeId[] = ['punk', 'workaholic', 'alcoholic', 'romantic', 'lazy', 'genius', 'diva', 'street']
 
@@ -65,8 +65,9 @@ export const generateArtist = (): Artist => {
     selfConfidence: clamp(baseSelfConfidence + (genreBias.selfConfidence ?? 0), 10, 90),
     traits: pickMany(TRAITS, randInt(1, 3)).map((t) => t.name),
     archetype: archetypeId,
-    songText: generateLyrics(),
+    songText: generateLyricsFromPrompt('', genre.id),
     trackTitle: generateTitle(),
+    lyricsPrompt: `${genre.role}: ${genre.name.toLowerCase()} музика`,  // дефолтний промпт
     localPop: clamp(basePopularity + randInt(-10, 10), 10, 90),
     nationalPop: clamp(Math.round(basePopularity * 0.5) + randInt(-10, 10), 0, 90),
     globalPop: clamp(Math.round(basePopularity * 0.2) + randInt(0, 10), 0, 80),

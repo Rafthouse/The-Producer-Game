@@ -6,6 +6,7 @@ import { Button } from '../ui/Button'
 import { formatMoney, formatNumber, formatSigned } from '../../lib/format'
 import { analyzeText, calculateTextFit, TOPIC_LABELS } from '../../lib/analyzeText'
 import type { TextTopic } from '../../lib/analyzeText'
+import { generateLyricsFromPrompt } from '../../lib/generateLyrics'
 
 /**
  * Вкладка 1: Студія
@@ -137,11 +138,14 @@ function StudioRecording({ artist, onRelease, onBack, tokens }: {
   const [mode, setMode] = useState<'generated' | 'custom'>('generated')
   const [customText, setCustomText] = useState('')
   const [showAnalysis, setShowAnalysis] = useState(false)
+  // Промпт для генерації
+  const [prompt, setPrompt] = useState(artist.lyricsPrompt || '')
+  const [currentLyrics, setCurrentLyrics] = useState(artist.songText)
 
   // Аналізуємо текст (генерований або кастомний)
   const textToAnalyze = mode === 'custom' && customText.trim()
     ? customText
-    : artist.songText
+    : currentLyrics
   const analysis = analyzeText(textToAnalyze)
   const overtonForAnalysis = overtonWindow.map((ow) => ({
     topic: ow.topic as TextTopic,
@@ -154,11 +158,18 @@ function StudioRecording({ artist, onRelease, onBack, tokens }: {
 
   // Оновлюємо текст артиста перед релізом
   const handleRelease = () => {
-    if (mode === 'custom' && isValidCustom) {
-      // Тимчасово оновлюємо текст
+    if (mode === 'generated') {
+      useGameStore.setState({ currentArtist: { ...artist, songText: currentLyrics, lyricsPrompt: prompt } })
+    } else if (mode === 'custom' && isValidCustom) {
       useGameStore.setState({ currentArtist: { ...artist, songText: customText } })
     }
     onRelease()
+  }
+
+  // Регенерація тексту за промптом
+  const regenerate = () => {
+    const newLyrics = generateLyricsFromPrompt(prompt, artist.genre.id)
+    setCurrentLyrics(newLyrics)
   }
 
   // Теми з ненульовим значенням
@@ -215,10 +226,30 @@ function StudioRecording({ artist, onRelease, onBack, tokens }: {
 
         {/* Режим: згенерований текст */}
         {mode === 'generated' && (
-          <div className="rounded-2xl border border-studio-600 bg-studio-900/70 p-4">
-            <p className="whitespace-pre-line text-center text-sm italic leading-relaxed text-zinc-300">
-              {artist.songText}
-            </p>
+          <div>
+            {/* Промпт */}
+            <div className="mb-2">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-1">Промпт</p>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Опиши тему пісні... любов, протест, алкоголь, абсурд, село..."
+                  className="flex-1 rounded-xl border border-studio-600 bg-studio-900/70 px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"
+                />
+                <button
+                  onClick={regenerate}
+                  className="rounded-xl bg-amber-500/20 border border-amber-600/30 px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/30 transition-colors"
+                >🔄</button>
+              </div>
+            </div>
+            {/* Текст */}
+            <div className="rounded-2xl border border-studio-600 bg-studio-900/70 p-4">
+              <p className="whitespace-pre-line text-center text-sm italic leading-relaxed text-zinc-300">
+                {currentLyrics}
+              </p>
+            </div>
           </div>
         )}
 
