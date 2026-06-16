@@ -63,6 +63,9 @@ export function TabStudio() {
                     {a.needs.length > 0 && <span className="ml-2 text-amber-400">⚠️ {a.needs.length} потреб</span>}
                     {a.inRehab && <span className="ml-2 text-red-400">🏥 Рехаб</span>}
                   </div>
+                  <p className="mt-1 text-[11px] italic text-zinc-500 line-clamp-1">
+                    «{a.songText.split('\n')[0]}»
+                  </p>
                 </div>
               </div>
               <div className="flex gap-1.5">
